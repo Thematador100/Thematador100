@@ -1,0 +1,163 @@
+"use client";
+
+import React from 'react';
+import dynamic from "next/dynamic";
+import { AnalysisResult, Demographics, Psychographics, QuantitativeModel } from '../types';
+
+const DecisionDecompositionChart = dynamic(() => import("./DecisionDecompositionChart"), { ssr: false });
+const AngleUpliftHeatmap = dynamic(() => import("./AngleUpliftHeatmap"), { ssr: false });
+
+
+interface B2BAnalysisReportProps {
+    analysis: AnalysisResult;
+}
+
+const DemographicsCard: React.FC<{ demographics: Demographics }> = ({ demographics }) => (
+    <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-700">
+        <h4 className="font-bold text-blue-300">Inferred Demographics</h4>
+        <ul className="text-sm text-slate-300 space-y-2 mt-2">
+            <li><strong>Age Range:</strong> {demographics.ageRange}</li>
+            <li><strong>Est. Income Level:</strong> {demographics.incomeLevel}</li>
+            <li><strong>Common Locations:</strong> {demographics.commonLocations.join(', ')}</li>
+        </ul>
+    </div>
+);
+
+const PsychographicsCard: React.FC<{ psychographics: Psychographics }> = ({ psychographics }) => (
+     <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-700 space-y-4">
+        <h4 className="font-bold text-blue-300">Psychographics & Motivations</h4>
+        <div>
+            <h5 className="text-xs text-slate-400 uppercase font-semibold">Psychological Drivers:</h5>
+            <div className="space-y-2 mt-2">
+                {psychographics.motivations.map((m, i) => (
+                    <div key={i} className="bg-slate-950 p-3 rounded-lg border border-slate-800">
+                        <p className="font-bold text-blue-400 text-sm">{m.driver}</p>
+                        <p className="text-slate-400 text-xs mt-1">{m.description}</p>
+                        <p className="text-slate-300 text-xs mt-2 pt-2 border-t border-slate-700">
+                            <strong className="text-slate-400">Purchasing Implication:</strong> {m.purchasingImplication}
+                        </p>
+                    </div>
+                ))}
+            </div>
+        </div>
+         <div>
+            <h5 className="text-xs text-slate-400 uppercase font-semibold">Actionable Data Signals:</h5>
+            <ul className="list-disc list-inside text-sm text-slate-300 space-y-1 mt-2">
+                {psychographics.dataSignals.map(signal => <li key={signal}>{signal}</li>)}
+            </ul>
+        </div>
+    </div>
+);
+
+const QuantitativeModelReport: React.FC<{ model: QuantitativeModel }> = ({ model }) => (
+    <div className="space-y-4">
+        <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-700">
+            <h4 className="font-bold text-blue-300">Decision Score Formula</h4>
+            <pre className="text-blue-300 text-sm whitespace-pre-wrap font-mono bg-slate-950 p-3 rounded-md mt-2"><code>{model.decisionScoreFormula}</code></pre>
+        </div>
+        <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-700">
+            <h4 className="font-bold text-blue-300">Variable Definitions</h4>
+            <div className="space-y-2 mt-2">
+                {model.variableDefinitions.map(v => (
+                    <div key={v.variable} className="text-xs">
+                        <code className="font-mono text-slate-300 bg-slate-800 p-1 rounded">{v.variable}</code>: <span className="text-slate-400">{v.definition}</span>
+                    </div>
+                ))}
+            </div>
+        </div>
+        <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-700">
+            <h4 className="font-bold text-blue-300">Model Integrity (Property Tests)</h4>
+            <ul className="list-disc list-inside text-xs text-slate-400 space-y-1 mt-2">
+                {model.propertyTests.map(t => <li key={t.testName}><strong>{t.testName}:</strong> {t.description}</li>)}
+            </ul>
+        </div>
+        <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-700">
+            <h4 className="font-bold text-blue-300">Experiment Plan</h4>
+            <p className="text-xs text-slate-400 mt-2"><strong>Hypothesis (H1):</strong> {model.experimentPlan.hypothesis}</p>
+            <p className="text-xs text-slate-400 mt-1"><strong>Test:</strong> {model.experimentPlan.test}</p>
+        </div>
+        <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-700">
+            <h4 className="font-bold text-blue-300">Add to JSON (Lead Object)</h4>
+            <p className="text-xs text-slate-400 mt-2">{model.addToJson.description}</p>
+            <pre className="text-blue-300 text-xs whitespace-pre-wrap font-mono bg-slate-950 p-3 rounded-md mt-2"><code>{model.addToJson.jsonOutput}</code></pre>
+        </div>
+    </div>
+);
+
+
+const EmptyState: React.FC<{ message?: string }> = ({ message = "No data available" }) => {
+  return <div className="h-full grid place-items-center text-sm text-slate-500">{message}</div>;
+}
+
+const B2BAnalysisReport: React.FC<B2BAnalysisReportProps> = ({ analysis }) => {
+    const { sharedProfile } = analysis;
+
+    const barData = (sharedProfile.dataVisualizationSuite?.decisionDecomposition ?? []).map(d => ({ 
+        label: d.label ?? "—", 
+        value: Number(d.value ?? 0) 
+    })).filter(d => Number.isFinite(d.value));
+
+    const heatData = (sharedProfile.dataVisualizationSuite?.angleUplift ?? []).map(c => ({
+        segment: c.segment ?? "Unknown",
+        angle: c.angle ?? "Unknown",
+        uplift: Number(c.uplift ?? 0)
+    })).filter(c => Number.isFinite(c.uplift));
+
+    return (
+        <div className="max-w-4xl mx-auto bg-slate-800/70 rounded-xl border border-blue-500/50 shadow-2xl p-6 animate-fade-in mb-12">
+            <h2 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400 text-center">
+                Ideal Customer Profile Analysis
+            </h2>
+            <p className="text-center text-slate-400 mt-1 mb-8">A synthesized profile of your 'Golden Customers'.</p>
+
+            <div className="space-y-8">
+                <div>
+                    <h3 className="text-lg font-semibold text-slate-200">Executive Summary</h3>
+                    <p className="text-slate-300 text-sm mt-2">{sharedProfile.summary}</p>
+                </div>
+
+                <div className="pt-6 border-t border-slate-700">
+                    <h3 className="text-lg font-semibold text-slate-200 mb-4">Quantitative Model & Core Hypothesis</h3>
+                    <QuantitativeModelReport model={sharedProfile.quantitativeModel} />
+                </div>
+                
+                 <div className="pt-6 border-t border-slate-700">
+                    <h3 className="text-lg font-semibold text-slate-200 mb-4">Data Visualizations</h3>
+                     <div className="space-y-6">
+                        <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-700">
+                             <h4 className="font-bold text-blue-300 mb-2">Decision Decomposition</h4>
+                             <div className="w-full h-72 md:h-96">
+                                {barData.length > 0 ? <DecisionDecompositionChart data={barData} /> : <EmptyState />}
+                             </div>
+                        </div>
+                        <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-700">
+                             <h4 className="font-bold text-blue-300 mb-2">Angle Uplift by Emotion</h4>
+                             <div className="w-full h-72 md:h-96">
+                                 {heatData.length > 0 ? <AngleUpliftHeatmap data={heatData} /> : <EmptyState />}
+                             </div>
+                        </div>
+                    </div>
+                </div>
+
+
+                <div className="pt-6 border-t border-slate-700 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <DemographicsCard demographics={sharedProfile.demographics} />
+                    <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-700">
+                         <h4 className="font-bold text-blue-300">Professional Profile</h4>
+                         <ul className="text-sm text-slate-300 space-y-2 mt-2">
+                             <li><strong>Industries:</strong> {sharedProfile.commonIndustries.join(', ')}</li>
+                             <li><strong>Job Functions:</strong> {sharedProfile.commonJobFunctions.join(', ')}</li>
+                             <li><strong>Company Sizes:</strong> {sharedProfile.commonCompanySizes.join(', ')}</li>
+                         </ul>
+                    </div>
+                </div>
+                
+                <div className="pt-6 border-t border-slate-700">
+                     <PsychographicsCard psychographics={sharedProfile.psychographics} />
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export default B2BAnalysisReport;
